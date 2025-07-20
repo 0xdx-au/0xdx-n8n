@@ -30,8 +30,8 @@ RUN apk add --no-cache \
 
 RUN addgroup -g 1000 n8n && \
     adduser -D -s /bin/sh -u 1000 -G n8n n8n && \
-    mkdir -p /home/n8n/.n8n /certs /app && \
-    chown -R n8n:n8n /home/n8n /app
+    mkdir -p /home/n8n/.n8n /var/log/n8n /certs /app && \
+    chown -R n8n:n8n /home/n8n /var/log/n8n /app
 
 COPY --from=builder /usr/local/lib/node_modules/n8n /app/n8n
 COPY --from=builder /usr/local/bin/n8n /usr/local/bin/n8n

@@ -73,7 +73,7 @@ services:
       - n8n-secure-network
     depends_on:
       - n8n-db
-    user: "node"
+    user: "1000:1000"
     read_only: true
     tmpfs:
       - /tmp:noexec,nosuid,size=100m
@@ -232,57 +232,16 @@ services:
       - no-new-privileges:true
 
 volumes:
-  # Persistent data with security labels
+  # Persistent data volumes (Docker managed)
   caddy-data:
-    driver: local
-    driver_opts:
-      type: none
-      o: bind,noexec,nosuid,nodev
-      device: ${PWD}/volumes/caddy/data
   caddy-config:
-    driver: local
-    driver_opts:
-      type: none
-      o: bind,noexec,nosuid,nodev
-      device: ${PWD}/volumes/caddy/config
   n8n-data:
-    driver: local
-    driver_opts:
-      type: none
-      o: bind,noexec,nosuid
-      device: ${PWD}/volumes/n8n/data
   n8n-logs:
-    driver: local
-    driver_opts:
-      type: none
-      o: bind,noexec,nosuid,nodev
-      device: ${PWD}/volumes/n8n/logs
   postgres-data:
-    driver: local
-    driver_opts:
-      type: none
-      o: bind,noexec,nosuid,nodev
-      device: ${PWD}/volumes/postgres/data
   prometheus-data:
-    driver: local
-    driver_opts:
-      type: none
-      o: bind,noexec,nosuid,nodev
-      device: ${PWD}/volumes/prometheus/data
   grafana-data:
-    driver: local
-    driver_opts:
-      type: none
-      o: bind,noexec,nosuid,nodev
-      device: ${PWD}/volumes/grafana/data
   zap-data:
-    driver: local
-    driver_opts:
-      type: none
-      o: bind,noexec,nosuid,nodev
-      device: ${PWD}/volumes/zap/data
   fail2ban-data:
-    driver: local
 
 networks:
   # Isolated networks with security policies
