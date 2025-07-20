@@ -132,6 +132,9 @@ services:
       - GF_LOG_LEVEL=warn
     volumes:
       - grafana-data:/var/lib/grafana
+      - ./grafana-config/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./grafana-config/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./grafana-config/dashboards:/var/lib/grafana/dashboards:ro
     networks:
       - n8n-secure-network
     security_opt:
