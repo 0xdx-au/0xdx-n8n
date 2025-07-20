@@ -42,7 +42,13 @@ localhost {
             header_up X-Forwarded-For {remote_host}
             header_up X-Forwarded-Proto {scheme}
             header_up X-Forwarded-Host {host}
+            header_up X-Forwarded-Prefix /grafana
         }
+    }
+    
+    # Direct Grafana access for troubleshooting
+    handle /grafana {
+        redir /grafana/ permanent
     }
     
     # Main N8N application
