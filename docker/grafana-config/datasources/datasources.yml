@@ -10,3 +10,20 @@ datasources:
     isDefault: true
     version: 1
     editable: true
+  - name: 'N8N PostgreSQL'
+    type: postgres
+    access: proxy
+    orgId: 1
+    uid: n8n-postgres
+    url: postgres:5432
+    database: n8n_prod_7361
+    user: n8n_user_5128
+    secureJsonData:
+      password: 'Sup3rS3cur3DBP@ssw0rd2025!'
+    jsonData:
+      sslmode: 'disable'
+      maxOpenConns: 100
+      maxIdleConns: 100
+      connMaxLifetime: 14400
+    version: 1
+    editable: true
