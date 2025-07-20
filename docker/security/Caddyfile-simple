@@ -1,0 +1,69 @@
+# 2025-07-20 CH41B01
+# Simple Secure Caddy Configuration
+
+{
+    email security@localhost
+}
+
+# Main N8N HTTPS site
+localhost {
+    # TLS configuration
+    tls internal
+    
+    # Security headers
+    header {
+        # HSTS
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        
+        # Content Security Policy
+        Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' ws://localhost wss://localhost; frame-ancestors 'none';"
+        
+        # Additional security headers
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+        X-XSS-Protection "1; mode=block"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        
+        # Hide server information
+        -Server
+        -X-Powered-By
+    }
+    
+    # Health check endpoint
+    handle /health {
+        respond "OK" 200
+    }
+    
+    # Grafana dashboard
+    handle_path /grafana/* {
+        reverse_proxy grafana:3000 {
+            header_up Host {upstream_hostport}
+            header_up X-Real-IP {remote_host}
+            header_up X-Forwarded-For {remote_host}
+            header_up X-Forwarded-Proto {scheme}
+            header_up X-Forwarded-Host {host}
+        }
+    }
+    
+    # Main N8N application
+    handle {
+        reverse_proxy n8n:5678 {
+            header_up Host {upstream_hostport}
+            header_up X-Real-IP {remote_host}
+            header_up X-Forwarded-For {remote_host}
+            header_up X-Forwarded-Proto {scheme}
+            header_up X-Forwarded-Host {host}
+            header_up Connection {>Connection}
+            header_up Upgrade {>Upgrade}
+            
+            # Remove server headers
+            header_down -Server
+            header_down -X-Powered-By
+        }
+    }
+}
+
+# HTTP to HTTPS redirect
+http://localhost {
+    redir https://{host}{uri} permanent
+}
