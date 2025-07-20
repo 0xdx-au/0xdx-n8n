@@ -42,11 +42,12 @@ RUN npm install -g \
 RUN addgroup -g 1001 scanner && \
     adduser -D -u 1001 -G scanner scanner
 
-# Create directories
+# Create directories with proper permissions
 RUN mkdir -p /opt/security-scanner \
     /var/log/security \
     /scan \
-    && chown -R scanner:scanner /opt/security-scanner
+    && chown -R scanner:scanner /opt/security-scanner \
+    && chown -R scanner:scanner /var/log/security
 
 # Copy scanner scripts
 COPY scanner-scripts/security-scanner.sh /opt/security-scanner/

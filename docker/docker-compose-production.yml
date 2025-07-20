@@ -19,6 +19,28 @@ volumes:
   dns_cache:
 
 services:
+  # Volume Permissions Initialization
+  volume-init:
+    image: alpine:latest
+    container_name: n8n-volume-init
+    volumes:
+      - security_logs:/var/log
+    command: >
+      sh -c '
+        echo "Initializing volume permissions..." &&
+        mkdir -p /var/log/security /var/log/clamav /var/log/grafana /var/log/nginx /var/log/postgresql &&
+        touch /var/log/security/security-scanner.log /var/log/security/scan-results.json &&
+        chown -R 1001:1001 /var/log/security &&
+        chown -R 100:101 /var/log/clamav &&
+        chown -R 472:472 /var/log/grafana &&
+        chown -R 101:101 /var/log/nginx &&
+        chown -R 999:999 /var/log/postgresql &&
+        chmod -R 755 /var/log/security /var/log/clamav /var/log/grafana /var/log/nginx /var/log/postgresql &&
+        chmod 644 /var/log/security/security-scanner.log /var/log/security/scan-results.json &&
+        echo "Volume permissions initialized successfully"
+      '
+    restart: "no"
+
   # DNS Security Service - Cloudflare DoH/DoT
   dns-security:
     image: cloudflare/cloudflared:latest
@@ -85,7 +107,9 @@ services:
       - SCAN_INTERVAL=86400  # 24 hours
       - REBUILD_SCAN=true
       - LOG_LEVEL=INFO
+    user: "1001:1001"
     depends_on:
+      - volume-init
       - clamav
     security_opt:
       - no-new-privileges:true

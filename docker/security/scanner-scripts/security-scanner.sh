@@ -17,7 +17,9 @@ RESULTS_FILE="/var/log/security/scan-results.json"
 log() {
     local level=$1
     shift
-    echo "$(date -Iseconds) [$level] $*" | tee -a "$LOG_FILE"
+    local message="$(date -Iseconds) [$level] $*"
+    echo "$message"
+    echo "$message" >> "$LOG_FILE" 2>/dev/null || true
 }
 
 # Initialize logging
