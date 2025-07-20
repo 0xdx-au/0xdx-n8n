@@ -2,26 +2,205 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Dashboard Home</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>N8N Secure Stack - Dashboard Home</title>
     <style>
-        body { font-family: Arial, sans-serif; }
-        .container { max-width: 800px; margin: 0 auto; }
-        h1, h2, p { text-align: center; }
-        ul { list-style: none; padding: 0; text-align: center; }
-        li { margin: 10px 0; }
-        a { color: #007BFF; text-decoration: none; }
-        a:hover { text-decoration: underline; }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 600px;
+            width: 100%;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 50px 40px;
+            box-shadow: 0 25px 50px rgba(0,0,0,0.15);
+            text-align: center;
+        }
+        
+        .header {
+            margin-bottom: 40px;
+        }
+        
+        .header h1 {
+            color: #2c3e50;
+            font-size: 2.8em;
+            margin-bottom: 10px;
+            font-weight: 300;
+        }
+        
+        .header .subtitle {
+            color: #7f8c8d;
+            font-size: 1.2em;
+            margin-bottom: 5px;
+        }
+        
+        .header .description {
+            color: #95a5a6;
+            font-size: 1em;
+        }
+        
+        .nav-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .nav-card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            text-decoration: none;
+            color: inherit;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.08);
+            transition: all 0.3s ease;
+            border-left: 5px solid #3498db;
+        }
+        
+        .nav-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 35px rgba(0,0,0,0.2);
+        }
+        
+        .nav-card.n8n {
+            border-left-color: #ff6b6b;
+        }
+        
+        .nav-card.grafana {
+            border-left-color: #f39c12;
+        }
+        
+        .nav-card.logs {
+            border-left-color: #9b59b6;
+        }
+        
+        .card-header {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 15px;
+        }
+        
+        .card-icon {
+            font-size: 2.5em;
+            margin-right: 15px;
+        }
+        
+        .card-title {
+            font-size: 1.5em;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+        
+        .card-description {
+            color: #7f8c8d;
+            font-size: 1em;
+            line-height: 1.5;
+        }
+        
+        .status {
+            background: #ecf0f1;
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 30px;
+        }
+        
+        .status-title {
+            color: #2c3e50;
+            font-size: 1.1em;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+        
+        .status-info {
+            color: #7f8c8d;
+            font-size: 0.9em;
+            line-height: 1.4;
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                padding: 30px 20px;
+                margin: 10px;
+            }
+            
+            .header h1 {
+                font-size: 2.2em;
+            }
+            
+            .card-header {
+                flex-direction: column;
+            }
+            
+            .card-icon {
+                margin-right: 0;
+                margin-bottom: 10px;
+            }
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>Dashboard Home</h1>
-        <p>Welcome to the central dashboard. Access all your tools below:</p>
-        <ul>
-            <li><a href="/">N8N Dashboard</a></li>
-            <li><a href="/grafana">Grafana Monitoring</a></li>
-            <li><a href="/dashboard/logs">Recent Logs</a></li>
-        </ul>
+        <div class="header">
+            <h1>🚀 N8N Secure Stack</h1>
+            <p class="subtitle">Enterprise Workflow Automation Platform</p>
+            <p class="description">Production-ready deployment with security hardening</p>
+        </div>
+        
+        <div class="nav-grid">
+            <a href="/n8n/" class="nav-card n8n">
+                <div class="card-header">
+                    <div class="card-icon">⚡</div>
+                    <div class="card-title">N8N Workflow Designer</div>
+                </div>
+                <div class="card-description">
+                    Create and manage automated workflows with 400+ integrations
+                </div>
+            </a>
+            
+            <a href="/grafana/" class="nav-card grafana">
+                <div class="card-header">
+                    <div class="card-icon">📊</div>
+                    <div class="card-title">Grafana Analytics</div>
+                </div>
+                <div class="card-description">
+                    Monitor system performance and workflow metrics
+                </div>
+            </a>
+            
+            <a href="/dashboard/logs.html" class="nav-card logs">
+                <div class="card-header">
+                    <div class="card-icon">📋</div>
+                    <div class="card-title">System Monitoring</div>
+                </div>
+                <div class="card-description">
+                    View real-time logs, container status, and system health
+                </div>
+            </a>
+        </div>
+        
+        <div class="status">
+            <div class="status-title">🔒 Security Features Active</div>
+            <div class="status-info">
+                ✅ HTTPS Encryption &nbsp;•&nbsp; ✅ Container Hardening<br>
+                ✅ Network Isolation &nbsp;•&nbsp; ✅ Authentication Required<br>
+                ✅ Security Headers &nbsp;•&nbsp; ✅ Audit Logging
+            </div>
+        </div>
     </div>
 </body>
 </html>

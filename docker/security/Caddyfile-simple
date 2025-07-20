@@ -34,10 +34,35 @@ localhost {
         respond "OK" 200
     }
     
-    # Dashboard homepage
-    handle /dashboard {
+    # Dashboard homepage - default landing page
+    handle / {
         file_server {
             root /var/www/dashboard
+        }
+    }
+    
+    # Dashboard static files
+    handle /dashboard/* {
+        file_server {
+            root /var/www/dashboard
+        }
+    }
+    
+    # N8N Workflow Application
+    handle /n8n/* {
+        uri strip_prefix /n8n
+        reverse_proxy n8n:5678 {
+            header_up Host {upstream_hostport}
+            header_up X-Real-IP {remote_host}
+            header_up X-Forwarded-For {remote_host}
+            header_up X-Forwarded-Proto {scheme}
+            header_up X-Forwarded-Host {host}
+            header_up Connection {>Connection}
+            header_up Upgrade {>Upgrade}
+            
+            # Remove server headers
+            header_down -Server
+            header_down -X-Powered-By
         }
     }
     
