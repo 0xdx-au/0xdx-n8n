@@ -1,0 +1,260 @@
+version: '3.8'
+
+networks:
+  n8n_network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+    driver_opts:
+      com.docker.network.bridge.name: br-n8n-secure
+
+volumes:
+  n8n_data:
+  postgres_data:
+  grafana_data:
+  nginx_ssl:
+  clamav_data:
+  security_logs:
+  dns_cache:
+
+services:
+  # DNS Security Service - Cloudflare DoH/DoT
+  dns-security:
+    image: cloudflare/cloudflared:latest
+    container_name: n8n-dns-security
+    command: proxy-dns --address 0.0.0.0 --port 5053 --upstream https://1.1.1.1/dns-query --upstream https://1.0.0.1/dns-query
+    ports:
+      - "127.0.0.1:5053:5053/udp"
+    restart: unless-stopped
+    networks:
+      n8n_network:
+        ipv4_address: 172.20.0.10
+    dns:
+      - 1.1.1.1
+      - 1.0.0.1
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
+    volumes:
+      - dns_cache:/etc/cloudflared
+    healthcheck:
+      test: ["CMD", "nslookup", "cloudflare.com", "127.0.0.1:5053"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ClamAV Antivirus Scanner
+  clamav:
+    image: clamav/clamav:stable
+    container_name: n8n-clamav
+    restart: unless-stopped
+    networks:
+      - n8n_network
+    volumes:
+      - clamav_data:/var/lib/clamav
+      - n8n_data:/scan/n8n:ro
+      - security_logs:/var/log/clamav
+    environment:
+      - CLAMAV_NO_CLAMD=false
+      - CLAMAV_NO_FRESHCLAM=false
+    healthcheck:
+      test: ["CMD", "clamdcheck"]
+      interval: 60s
+      timeout: 30s
+      retries: 3
+    security_opt:
+      - no-new-privileges:true
+
+  # Security Scanner Service
+  security-scanner:
+    build:
+      context: ./security
+      dockerfile: Dockerfile.scanner
+    container_name: n8n-security-scanner
+    restart: unless-stopped
+    networks:
+      - n8n_network
+    volumes:
+      - n8n_data:/scan/n8n:ro
+      - security_logs:/var/log/security
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      - SCAN_INTERVAL=86400  # 24 hours
+      - REBUILD_SCAN=true
+      - LOG_LEVEL=INFO
+    depends_on:
+      - clamav
+    security_opt:
+      - no-new-privileges:true
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: n8n-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: n8n
+      POSTGRES_USER: n8n_user
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+      POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256
+      POSTGRES_HOST_AUTH_METHOD: scram-sha-256
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./security/postgresql.conf:/etc/postgresql/postgresql.conf
+      - ./security/init-postgres.sql:/docker-entrypoint-initdb.d/init-postgres.sql
+      - security_logs:/var/log/postgresql
+    secrets:
+      - postgres_password
+    networks:
+      - n8n_network
+    dns:
+      - 172.20.0.10  # dns-security service
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /var/run/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U n8n_user -d n8n"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: n8n-app
+    restart: unless-stopped
+    environment:
+      DB_TYPE: postgresdb
+      DB_POSTGRESDB_HOST: postgres
+      DB_POSTGRESDB_PORT: 5432
+      DB_POSTGRESDB_DATABASE: n8n
+      DB_POSTGRESDB_USER: n8n_user
+      DB_POSTGRESDB_PASSWORD_FILE: /run/secrets/postgres_password
+      N8N_PROTOCOL: http
+      N8N_HOST: localhost
+      N8N_PORT: 5678
+      NODE_ENV: production
+      WEBHOOK_URL: http://localhost/n8n/
+      N8N_EDITOR_BASE_URL: http://localhost/n8n/
+      N8N_LOG_LEVEL: info
+      N8N_LOG_OUTPUT: console,file
+      N8N_LOG_FILE_LOCATION: /home/node/logs/
+      N8N_SECURE_COOKIE: false
+      N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS: true
+      N8N_DISABLE_PRODUCTION_MAIN_PROCESS: false
+      N8N_ENCRYPTION_KEY_FILE: /run/secrets/n8n_encryption_key
+      N8N_USER_MANAGEMENT_DISABLED: false
+      N8N_DIAGNOSTICS_ENABLED: false
+      N8N_VERSION_NOTIFICATIONS_ENABLED: false
+      N8N_TEMPLATES_ENABLED: true
+      N8N_PUBLIC_API_ENABLED: true
+    volumes:
+      - n8n_data:/home/node/.n8n
+      - security_logs:/home/node/logs
+    secrets:
+      - postgres_password
+      - n8n_encryption_key
+    networks:
+      - n8n_network
+    dns:
+      - 172.20.0.10  # dns-security service
+    depends_on:
+      - postgres
+      - dns-security
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5678/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: n8n-grafana
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD_FILE: /run/secrets/grafana_password
+      GF_SECURITY_SECRET_KEY_FILE: /run/secrets/grafana_secret_key
+      GF_SERVER_PROTOCOL: http
+      GF_SERVER_HTTP_PORT: 3000
+      GF_SERVER_DOMAIN: 0xdx-n8n.local
+      GF_SERVER_ROOT_URL: https://0xdx-n8n.local/grafana/
+      GF_SERVER_SERVE_FROM_SUB_PATH: true
+      GF_DATABASE_TYPE: sqlite3
+      GF_DATABASE_PATH: /var/lib/grafana/grafana.db
+      GF_SECURITY_COOKIE_SECURE: true
+      GF_SECURITY_COOKIE_SAMESITE: strict
+      GF_SECURITY_STRICT_TRANSPORT_SECURITY: true
+      GF_LOG_LEVEL: info
+      GF_LOG_MODE: file
+      GF_PATHS_LOGS: /var/log/grafana
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana-config/provisioning:/etc/grafana/provisioning
+      - ./grafana-config/dashboards:/var/lib/grafana/dashboards
+      - security_logs:/var/log/grafana
+    secrets:
+      - grafana_password
+      - grafana_secret_key
+    networks:
+      - n8n_network
+    dns:
+      - 172.20.0.10  # dns-security service
+    depends_on:
+      - postgres
+      - dns-security
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  nginx:
+    image: nginx:alpine
+    container_name: n8n-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./security/nginx-clean.conf:/etc/nginx/conf.d/default.conf:ro
+      - nginx_ssl:/etc/nginx/certs
+      - security_logs:/var/log/nginx
+      - ./dashboard:/usr/share/nginx/html/dashboard:ro
+    networks:
+      - n8n_network
+    dns:
+      - 172.20.0.10  # dns-security service
+    depends_on:
+      - n8n
+      - grafana
+      - dns-security
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /var/cache/nginx
+      - /var/run
+      - /tmp
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+secrets:
+  postgres_password:
+    file: ./secrets/postgres_password.txt
+  n8n_encryption_key:
+    file: ./secrets/n8n_encryption_key.txt
+  grafana_password:
+    file: ./secrets/grafana_password.txt
+  grafana_secret_key:
+    file: ./secrets/grafana_secret_key.txt
