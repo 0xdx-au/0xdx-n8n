@@ -1,0 +1,56 @@
+# 2025-07-20 CH41B01
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment variables
+.env
+.env.local
+.env.development
+.env.staging
+.env.production
+
+# Docker volumes
+docker-compose.override.yml
+volumes/
+data/
+
+# Security certificates
+*.crt
+*.key
+*.pem
+
+# Test reports
+tests/security/reports/
+tests/integration/reports/
+tests/performance/reports/
+
+# Temporary files
+.tmp/
+.temp/
+tmp/
+
+# OS specific
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Node modules
+node_modules/
+package-lock.json
+
+# Secrets
+secrets/
+*.secret
+
+# Build artifacts
+dist/
+build/
