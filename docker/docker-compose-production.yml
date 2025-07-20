@@ -127,6 +127,8 @@ services:
     image: n8nio/n8n:latest
     container_name: n8n-app
     restart: unless-stopped
+    ports:
+      - "8080:5678"
     environment:
       DB_TYPE: postgresdb
       DB_POSTGRESDB_HOST: postgres
@@ -138,8 +140,8 @@ services:
       N8N_HOST: localhost
       N8N_PORT: 5678
       NODE_ENV: production
-      WEBHOOK_URL: http://localhost/n8n/
-      N8N_EDITOR_BASE_URL: http://localhost/n8n/
+      WEBHOOK_URL: http://localhost:8080/
+      N8N_EDITOR_BASE_URL: http://localhost:8080/
       N8N_LOG_LEVEL: info
       N8N_LOG_OUTPUT: console,file
       N8N_LOG_FILE_LOCATION: /home/node/logs/
@@ -223,8 +225,10 @@ services:
     restart: unless-stopped
     ports:
       - "80:80"
+      - "443:443"
     volumes:
       - ./security/nginx-clean.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
       - nginx_ssl:/etc/nginx/certs
       - security_logs:/var/log/nginx
       - ./dashboard:/usr/share/nginx/html/dashboard:ro

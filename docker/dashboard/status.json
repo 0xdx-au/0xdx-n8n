@@ -5,8 +5,8 @@
   "services": {
     "n8n": {
       "status": "running",
-      "url": "/n8n/",
-      "description": "Workflow Designer"
+      "url": ":8080",
+      "description": "Workflow Designer (Direct Access)"
     },
     "grafana": {
       "status": "initializing",

@@ -160,10 +160,11 @@
             <h1>💻 0xdx-n8n</h1>
             <p class="subtitle">Enterprise Workflow Automation Platform</p>
             <p class="description">Production-ready deployment with security hardening</p>
+            <p class="description" style="color: #666; font-size: 0.9em; margin-top: 10px;">Last updated: <span id="currentDate"></span></p>
         </div>
         
         <div class="nav-grid">
-            <a href="/n8n/" class="nav-card n8n">
+            <a href="http://localhost:8080/" class="nav-card n8n" target="_blank">
                 <div class="card-header">
                     <div class="card-icon">🖥️</div>
                     <div class="card-title">Workflow Designer</div>
@@ -203,6 +204,10 @@
             </div>
         </div>
     </div>
+    <script>
+        // Set current date
+        document.getElementById('currentDate').textContent = new Date().toLocaleDateString();
+    </script>
 </body>
 </html>
 
