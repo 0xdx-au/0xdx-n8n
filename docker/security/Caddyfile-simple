@@ -34,15 +34,16 @@ localhost {
         respond "OK" 200
     }
     
-    # Dashboard homepage - default landing page
-    handle / {
+    # Dashboard logs page
+    handle /dashboard/logs.html {
+        rewrite * /logs.html
         file_server {
             root /var/www/dashboard
         }
     }
     
-    # Dashboard static files
-    handle /dashboard/* {
+    # Dashboard homepage - default landing page (must be after /dashboard/*)
+    handle / {
         file_server {
             root /var/www/dashboard
         }
