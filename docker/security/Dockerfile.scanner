@@ -1,0 +1,66 @@
+FROM alpine:latest
+
+# Install security tools and build dependencies
+RUN apk add --no-cache \
+    bash \
+    curl \
+    jq \
+    docker-cli \
+    python3 \
+    py3-pip \
+    git \
+    nodejs \
+    npm \
+    nikto \
+    nmap \
+    gcc \
+    python3-dev \
+    musl-dev \
+    linux-headers \
+    netcat-openbsd \
+    && rm -rf /var/cache/apk/*
+
+# Install Python security tools in virtual environment
+RUN python3 -m venv /opt/venv && \
+    /opt/venv/bin/pip install --no-cache-dir \
+    bandit \
+    safety \
+    semgrep \
+    pylint \
+    requests
+
+# Add venv to PATH
+ENV PATH="/opt/venv/bin:$PATH"
+
+# Install Node.js security tools
+RUN npm install -g \
+    eslint \
+    retire \
+    audit-ci
+
+# Create scanner user
+RUN addgroup -g 1001 scanner && \
+    adduser -D -u 1001 -G scanner scanner
+
+# Create directories with proper permissions
+RUN mkdir -p /opt/security-scanner \
+    /var/log/security \
+    /scan \
+    && chown -R scanner:scanner /opt/security-scanner \
+    && chown -R scanner:scanner /var/log/security
+
+# Copy scanner scripts
+COPY scanner-scripts/security-scanner.sh /opt/security-scanner/
+RUN tr -d '\r' < /opt/security-scanner/security-scanner.sh > /opt/security-scanner/security-scanner-fixed.sh && \
+    mv /opt/security-scanner/security-scanner-fixed.sh /opt/security-scanner/security-scanner.sh && \
+    chmod +x /opt/security-scanner/security-scanner.sh && \
+    chown -R scanner:scanner /opt/security-scanner
+
+USER scanner
+WORKDIR /opt/security-scanner
+
+# Health check
+HEALTHCHECK --interval=60s --timeout=30s --start-period=10s --retries=3 \
+    CMD pgrep -f security-scanner || exit 1
+
+CMD ["/bin/bash", "/opt/security-scanner/security-scanner.sh"]

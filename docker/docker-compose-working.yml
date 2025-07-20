@@ -1,0 +1,99 @@
+# 2025-07-20 CH41B01 
+# Working Secure N8N Deployment
+
+services:
+  # N8N Application
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: n8n-secure
+    restart: unless-stopped
+    ports:
+      - "443:5678"
+      - "80:5678"
+    environment:
+      - N8N_HOST=localhost
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=http
+      - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY:-n8n-production-secure-key-change-this-immediately-123456789}
+      - N8N_USER_FOLDER=/home/node/.n8n
+      - N8N_LOG_LEVEL=warn
+      - N8N_BASIC_AUTH_ACTIVE=true
+      - N8N_BASIC_AUTH_USER=${N8N_BASIC_AUTH_USER:-admin}
+      - N8N_BASIC_AUTH_PASSWORD=${N8N_BASIC_AUTH_PASSWORD:-SecureN8NPassword123!}
+      - N8N_DISABLE_UI=${N8N_DISABLE_UI:-false}
+      - WEBHOOK_URL=https://localhost
+      - NODE_ENV=production
+      - DB_TYPE=postgresdb
+      - DB_POSTGRESDB_HOST=postgres
+      - DB_POSTGRESDB_PORT=5432
+      - DB_POSTGRESDB_DATABASE=${POSTGRES_DB:-n8n_secure_db}
+      - DB_POSTGRESDB_USER=${POSTGRES_USER:-n8n_secure_user}
+      - DB_POSTGRESDB_PASSWORD=${POSTGRES_PASSWORD:-SecurePostgreSQL_Password456!}
+      - TZ=UTC
+    volumes:
+      - n8n-data:/home/node/.n8n
+      - n8n-logs:/var/log/n8n
+    networks:
+      - n8n-network
+    depends_on:
+      - postgres
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:5678/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: n8n-postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB:-n8n_secure_db}
+      - POSTGRES_USER=${POSTGRES_USER:-n8n_secure_user}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-SecurePostgreSQL_Password456!}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - n8n-network
+    expose:
+      - "5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-n8n_secure_user} -d ${POSTGRES_DB:-n8n_secure_db}"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # Grafana for Monitoring
+  grafana:
+    image: grafana/grafana:latest
+    container_name: n8n-grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-SecureGrafanaAdmin789!}
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_SECURITY_DISABLE_GRAVATAR=true
+      - GF_SERVER_PROTOCOL=http
+      - GF_SERVER_DOMAIN=localhost
+    volumes:
+      - grafana-data:/var/lib/grafana
+    networks:
+      - n8n-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3000/api/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  n8n-data:
+  n8n-logs:
+  postgres-data:
+  grafana-data:
+
+networks:
+  n8n-network:
+    driver: bridge

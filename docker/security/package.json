@@ -1,0 +1,14 @@
+{
+  "name": "0xdx-n8n-security",
+  "version": "1.0.0",
+  "description": "Security dependencies for hardened N8N deployment",
+  "dependencies": {
+    "helmet": "^7.0.0",
+    "express-rate-limit": "^6.10.0",
+    "express-slow-down": "^1.6.0",
+    "compression": "^1.7.4"
+  },
+  "author": "0xdx",
+  "license": "MIT",
+  "private": true
+}

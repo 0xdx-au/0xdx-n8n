@@ -1,0 +1,107 @@
+# 2025-07-20 CH41B01
+# Simple Secure Caddy Configuration
+
+{
+    email security@localhost
+}
+
+# Main N8N HTTPS site
+localhost {
+    # TLS configuration
+    tls internal
+    
+    # Security headers
+    header {
+        # HSTS
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        
+        # Content Security Policy
+        Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' ws://localhost wss://localhost; frame-ancestors 'none';"
+        
+        # Additional security headers
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+        X-XSS-Protection "1; mode=block"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        
+        # Hide server information
+        -Server
+        -X-Powered-By
+    }
+    
+    # Health check endpoint
+    handle /health {
+        respond "OK" 200
+    }
+    
+    # Dashboard logs page
+    handle /dashboard/logs.html {
+        rewrite * /logs.html
+        file_server {
+            root /var/www/dashboard
+        }
+    }
+    
+    # Dashboard homepage - default landing page (must be after /dashboard/*)
+    handle / {
+        file_server {
+            root /var/www/dashboard
+        }
+    }
+    
+    # N8N Workflow Application
+    handle /n8n/* {
+        uri strip_prefix /n8n
+        reverse_proxy n8n:5678 {
+            header_up Host {upstream_hostport}
+            header_up X-Real-IP {remote_host}
+            header_up X-Forwarded-For {remote_host}
+            header_up X-Forwarded-Proto {scheme}
+            header_up X-Forwarded-Host {host}
+            header_up Connection {>Connection}
+            header_up Upgrade {>Upgrade}
+            
+            # Remove server headers
+            header_down -Server
+            header_down -X-Powered-By
+        }
+    }
+    
+    # Grafana dashboard - fix redirect loop
+    handle_path /grafana/* {
+        reverse_proxy grafana:3000 {
+            header_up Host localhost:3000
+            header_up X-Real-IP {remote_host}
+            header_up X-Forwarded-For {remote_host}
+            header_up X-Forwarded-Proto https
+            header_up X-Forwarded-Host localhost
+        }
+    }
+    
+    # Grafana root redirect
+    handle /grafana {
+        redir /grafana/ 302
+    }
+    
+    # Main N8N application
+    handle {
+        reverse_proxy n8n:5678 {
+            header_up Host {upstream_hostport}
+            header_up X-Real-IP {remote_host}
+            header_up X-Forwarded-For {remote_host}
+            header_up X-Forwarded-Proto {scheme}
+            header_up X-Forwarded-Host {host}
+            header_up Connection {>Connection}
+            header_up Upgrade {>Upgrade}
+            
+            # Remove server headers
+            header_down -Server
+            header_down -X-Powered-By
+        }
+    }
+}
+
+# HTTP to HTTPS redirect
+http://localhost {
+    redir https://{host}{uri} permanent
+}
