@@ -1,11 +1,15 @@
+# 2025-07-20 CH41B01
+# Production-Ready Security-Hardened N8N Deployment
+
 services:
+  # Caddy Reverse Proxy with HTTPS and Security Headers
   caddy:
     image: caddy:2-alpine
     container_name: n8n-caddy-secure
     restart: unless-stopped
     ports:
-      - "127.0.0.1:443:443"
-      - "127.0.0.1:80:80"
+      - "127.0.0.1:443:443"  # Bind only to localhost
+      - "127.0.0.1:80:80"    # Bind only to localhost
     volumes:
       - ./security/Caddyfile-simple:/etc/caddy/Caddyfile:ro
       - ./dashboard:/var/www/dashboard:ro
@@ -24,6 +28,7 @@ services:
       - /tmp:noexec,nosuid,size=50m
       - /var/log/caddy:noexec,nosuid,size=50m
 
+  # N8N Application with Security Hardening
   n8n:
     image: n8nio/n8n:latest
     container_name: n8n-app-secure
@@ -75,6 +80,7 @@ services:
       retries: 5
       start_period: 60s
 
+  # PostgreSQL with Security Hardening  
   postgres:
     image: postgres:16-alpine
     container_name: n8n-postgres-secure
@@ -104,6 +110,7 @@ services:
       timeout: 10s
       retries: 5
 
+  # Grafana with Security Hardening
   grafana:
     image: grafana/grafana:latest
     container_name: n8n-grafana-secure
