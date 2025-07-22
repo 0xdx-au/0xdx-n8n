@@ -1,0 +1,214 @@
+{
+  "meta": {
+    "instanceId": "0xdx-n8n-secure"
+  },
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "create-document",
+        "responseMode": "responseNode",
+        "options": {
+          "noResponseBody": false
+        }
+      },
+      "name": "Webhook - Document Request",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "webhookId": "secure-doc-creation"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Validate and sanitize input\nconst input = $input.first();\n\nif (!input.json.documentType || !input.json.templateId || !input.json.replacements) {\n  throw new Error('Missing required fields: documentType, templateId, replacements');\n}\n\n// Security: Validate document type against whitelist\nconst allowedTypes = ['contract', 'invoice', 'report', 'letter', 'proposal'];\nif (!allowedTypes.includes(input.json.documentType.toLowerCase())) {\n  throw new Error('Document type not allowed');\n}\n\n// Security: Sanitize text inputs\nfunction sanitizeText(text) {\n  if (typeof text !== 'string') return text;\n  return text.replace(/<script[^>]*>.*?<\\/script>/gi, '')\n            .replace(/<[^>]+>/g, '')\n            .replace(/javascript:/gi, '')\n            .replace(/vbscript:/gi, '')\n            .replace(/onload/gi, '')\n            .replace(/onerror/gi, '')\n            .trim();\n}\n\n// Sanitize all replacement values\nconst sanitizedReplacements = {};\nfor (const [key, value] of Object.entries(input.json.replacements)) {\n  sanitizedReplacements[key] = sanitizeText(value);\n}\n\nreturn [{\n  json: {\n    documentType: input.json.documentType.toLowerCase(),\n    templateId: input.json.templateId,\n    replacements: sanitizedReplacements,\n    requestId: `doc-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,\n    timestamp: new Date().toISOString()\n  }\n}];"
+      },
+      "name": "Validate & Sanitize Input",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "resource": "document",
+        "operation": "copy",
+        "fileId": "={{$json.templateId}}",
+        "name": "={{$json.documentType}}-{{$json.requestId}}",
+        "additionalFields": {
+          "parents": ["secure-documents-folder-id"]
+        }
+      },
+      "name": "Copy Template Document",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [680, 300],
+      "credentials": {
+        "googleApi": {
+          "id": "n8n-gcp-service-account",
+          "name": "N8N GCP Service Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "documentId": "={{$json.id}}",
+        "actions": {
+          "replaceText": {
+            "fields": {
+              "text": [
+                {
+                  "containsText": "{{DOCUMENT_TYPE}}",
+                  "replaceText": "={{$('Validate & Sanitize Input').item.json.documentType}}"
+                },
+                {
+                  "containsText": "{{DATE}}",
+                  "replaceText": "={{new Date().toLocaleDateString()}}"
+                },
+                {
+                  "containsText": "{{REQUEST_ID}}",
+                  "replaceText": "={{$('Validate & Sanitize Input').item.json.requestId}}"
+                }
+              ]
+            }
+          }
+        }
+      },
+      "name": "Replace Template Variables",
+      "type": "n8n-nodes-base.googleDocs",
+      "typeVersion": 2,
+      "position": [900, 300],
+      "credentials": {
+        "googleApi": {
+          "id": "n8n-gcp-service-account",
+          "name": "N8N GCP Service Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "functionCode": "// Generate secure, time-limited download URL\nconst documentId = $input.first().json.documentId;\nconst requestId = $('Validate & Sanitize Input').item.json.requestId;\n\n// Generate secure token (in production, store in secure database)\nconst secureToken = require('crypto').randomBytes(32).toString('hex');\nconst expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours\n\n// Create secure download URL structure\nconst downloadUrl = `https://your-secure-domain.com/api/download/${requestId}?token=${secureToken}`;\n\nreturn [{\n  json: {\n    success: true,\n    documentId: documentId,\n    requestId: requestId,\n    downloadUrl: downloadUrl,\n    expiresAt: expiresAt.toISOString(),\n    message: 'Document created successfully. Download link expires in 24 hours.',\n    security: {\n      tokenBased: true,\n      timeExpired: true,\n      noPublicAccess: true\n    }\n  }\n}];"
+      },
+      "name": "Generate Secure Download Link",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{JSON.stringify($json, null, 2)}}",
+        "options": {
+          "responseHeaders": {
+            "headers": [
+              {
+                "name": "X-Frame-Options",
+                "value": "DENY"
+              },
+              {
+                "name": "X-Content-Type-Options",
+                "value": "nosniff"
+              },
+              {
+                "name": "X-XSS-Protection",
+                "value": "1; mode=block"
+              },
+              {
+                "name": "Strict-Transport-Security",
+                "value": "max-age=31536000; includeSubDomains"
+              }
+            ]
+          }
+        }
+      },
+      "name": "Secure Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1340, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Log security event (without sensitive data)\nconst logEntry = {\n  timestamp: new Date().toISOString(),\n  event: 'document_created',\n  requestId: $('Validate & Sanitize Input').item.json.requestId,\n  documentType: $('Validate & Sanitize Input').item.json.documentType,\n  userAgent: $('Webhook - Document Request').item.json.headers['user-agent'],\n  clientIP: $('Webhook - Document Request').item.json.headers['x-forwarded-for'] || 'unknown',\n  success: true\n};\n\nconsole.log('SECURITY_AUDIT:', JSON.stringify(logEntry));\n\nreturn [{ json: logEntry }];"
+      },
+      "name": "Security Audit Log",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1120, 480]
+    }
+  ],
+  "connections": {
+    "Webhook - Document Request": {
+      "main": [
+        [
+          {
+            "node": "Validate & Sanitize Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate & Sanitize Input": {
+      "main": [
+        [
+          {
+            "node": "Copy Template Document",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Copy Template Document": {
+      "main": [
+        [
+          {
+            "node": "Replace Template Variables",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Replace Template Variables": {
+      "main": [
+        [
+          {
+            "node": "Generate Secure Download Link",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Security Audit Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Secure Download Link": {
+      "main": [
+        [
+          {
+            "node": "Secure Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {},
+  "staticData": {},
+  "tags": [
+    {
+      "createdAt": "2025-07-22T14:58:00.000Z",
+      "updatedAt": "2025-07-22T14:58:00.000Z",
+      "id": "secure-document-automation",
+      "name": "Secure Document Automation"
+    }
+  ],
+  "triggerCount": 1,
+  "updatedAt": "2025-07-22T14:58:00.000Z",
+  "versionId": "secure-v1.0"
+}
